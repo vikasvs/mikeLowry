@@ -1,15 +1,10 @@
-from django.http import JsonResponse
-from .models import Stock
-from datetime import date
+from django.http import FileResponse
+from django.shortcuts import render
 
-def get_stock_data(request, query_date):
-    try:
-        stock = Stock.objects.get(date=query_date)
-        data = {
-            'date': stock.date,
-            'closing_price': stock.closing_price,
-            'signal': stock.signal
-        }
-        return JsonResponse(data)
-    except Stock.DoesNotExist:
-        return JsonResponse({'error': 'Data not found'}, status=404)
+def landing(request):
+    return render(request=request, template_name="index.html")
+
+def render_paper(request):
+    # return FileResponse(open("./mikeLowry/paper_backend/resources/graph.png", "rb"), filename="graph")
+    return render(request=request, template_name="graph.html")
+
