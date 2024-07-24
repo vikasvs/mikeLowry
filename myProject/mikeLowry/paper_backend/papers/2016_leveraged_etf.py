@@ -63,7 +63,11 @@ for date in spy_data.index:
     signal_dict[date] = spy_data.loc[date, 'Signal']
 
 # Write signals to JSON file
+<<<<<<< HEAD
 write_dict_to_json(signal_dict, '../papers/buy_sell_dicts/2016_leverage.json')
+=======
+write_dict_to_json(signal_dict, 'papers/buy_sell_dicts/2016_leverage.json')
+>>>>>>> caf1f3c701afeb4ba6c7c28a79c9deba7f724787
 
 # Define the end date and timeframes for plotting
 end_date = pd.to_datetime(datetime.now().date())
@@ -75,4 +79,8 @@ timeframes = {
 
 # Plot for each timeframe
 for period, (start_date, end_date) in timeframes.items():
+<<<<<<< HEAD
     plot_signals(spy_data, start_date, end_date, f'SPY Buy and Sell Signals ({period})', period)
+=======
+    plot_signals(spy_data, start_date, end_date, f'SPY Buy and Sell Signals ({period})')
+>>>>>>> caf1f3c701afeb4ba6c7c28a79c9deba7f724787

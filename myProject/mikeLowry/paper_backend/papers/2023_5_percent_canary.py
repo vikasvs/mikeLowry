@@ -74,7 +74,11 @@ def identify_signals(symbol, cooldown=42, buy_dip_cooldown=42):
     return data, special_declines, buy_the_dip_signals
 
 # Function to plot signals for a specific timeframe
+<<<<<<< HEAD
 def plot_signals(data, special_declines, buy_the_dip_signals, start_date, end_date, title, period):
+=======
+def plot_signals(data, special_declines, buy_the_dip_signals, start_date, end_date, title):
+>>>>>>> caf1f3c701afeb4ba6c7c28a79c9deba7f724787
     filtered_data = data[(data.index >= start_date) & (data.index <= end_date)]
     filtered_special_declines = [date for date in special_declines if start_date <= date <= end_date]
     filtered_buy_the_dip_signals = [date for date in buy_the_dip_signals if start_date <= date <= end_date]
@@ -95,9 +99,13 @@ def plot_signals(data, special_declines, buy_the_dip_signals, start_date, end_da
     plt.ylabel('Price')
     plt.legend()
     plt.grid(True)
+<<<<<<< HEAD
     #plt.show()
     png_file = f'../../static/2023_{period.replace(" ", "_")}.png'
     plt.savefig(png_file)
+=======
+    plt.show()
+>>>>>>> caf1f3c701afeb4ba6c7c28a79c9deba7f724787
 
 # Function to create a signal dictionary
 def create_signal_dict(data, special_declines, buy_the_dip_signals):
