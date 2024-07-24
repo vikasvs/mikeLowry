@@ -76,9 +76,8 @@ merged_df = spy_data.join(buy_percentage_df, how='left')
 
 # Define the timeframes to plot
 timeframes = {
-    '6 Months': timedelta(days=6*30),
+    '3 Months': timedelta(days=3*30),
     '1 Year': timedelta(days=365),
-    '3 Years': timedelta(days=3*365),
     '5 Years': timedelta(days=5*365)
 }
 
@@ -139,7 +138,7 @@ for label, period in timeframes.items():
     fig.colorbar(sm, ax=ax, label='Buy Percentage', orientation='vertical')
 
     # Adjust x-axis formatting based on the timeframe
-    if label == '6 Months':
+    if label == '3 Months':
         ax.xaxis.set_major_locator(mdates.WeekdayLocator())
         ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %d'))
         ax.xaxis.set_minor_locator(mdates.DayLocator())
@@ -155,7 +154,8 @@ for label, period in timeframes.items():
     plt.setp(ax.get_xticklabels(), rotation=45, ha='right')
     plt.legend(handles=handles, labels=labels)
     plt.grid(True)
-    #plt.show()
 
-    png_file = f'../../static/master_{period.replace(" ", "_")}.png'
-    plt.savefig(png_file)
+    # Save plot as PNG
+    plot_filename = f'../../static/master_{label.replace(" ", "_")}.png'
+    plt.savefig(plot_filename)
+    plt.close(fig)

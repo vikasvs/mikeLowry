@@ -115,7 +115,7 @@
         }
     </style>
     <script>
-        let lastYear = '';
+        let lastYear = 'master';
         let currentTimeframe = '1_Year';
 
         function updateInfoBox() {
@@ -140,7 +140,7 @@
             img.src = staticUrl + imageName;
             img.alt = "Stock Data Graph";
 
-            const yearMatch = imageName.match(/(\d{4})/);
+            const yearMatch = imageName.match(/(\d{4}|master)/);
             if (yearMatch) {
                 lastYear = yearMatch[1];
             }
@@ -155,11 +155,7 @@
 
         function showTimeframe(timeframe) {
             currentTimeframe = timeframe;
-            if (lastYear) {
-                showImage(lastYear + '_' + timeframe + '.png');
-            } else {
-                showImage('graph.png');
-            }
+            showImage(lastYear + '_' + timeframe + '.png');
         }
 
         function switchYear(year) {
@@ -168,7 +164,7 @@
         }
 
         window.onload = function() {
-            showImage("graph.png");
+            showImage("master_1_Year.png");
         }
     </script>
 </head>
@@ -179,7 +175,7 @@
     <div class="main-content">
         <div class="container">
             <div class="button-container">
-                <button onclick="showImage('graph.png')">Master Plot</button>
+                <button onclick="showImage('master_1_Year.png')">Master Plot</button>
                 <button onclick="switchYear('2014')">2014</button>
                 <button onclick="switchYear('2016')">2016</button>
                 <button onclick="switchYear('2023')">2023</button>
