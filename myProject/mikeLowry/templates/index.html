@@ -6,9 +6,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Landing Page</title>
+    <script>
+        function showImage() {
+            document.getElementById("image-container").innerHTML = '<img src="{% static "graph.png" %}" alt="Stock Data Graph">';
+        }
+
+        window.onload = function() {
+            showImage();
+        }
+    </script>
 </head>
 <body>
     <h1>Welcome to Stock Data App</h1>
-    <button onclick="window.location.href='../paper1'">Paper 1</button>
+    <button onclick="showImage()">Master Plot</button>
+    <div id="image-container"></div>
 </body>
 </html>

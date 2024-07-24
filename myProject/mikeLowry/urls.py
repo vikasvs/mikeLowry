@@ -1,8 +1,8 @@
 from django.urls import path
-from .views import landing, render_paper
+from . import views
 
 urlpatterns = [
-    path('index/', landing, name="landing_page"),
-    path('paper1/', render_paper, name="paper 1")
-    # render_graph
+    path('index/', views.landing, name='index'),
+    path('show_image/', views.show_image, name='show_image'),
+    # Add other paths here
 ]
