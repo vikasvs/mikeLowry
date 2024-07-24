@@ -74,7 +74,7 @@ def identify_signals(symbol, cooldown=42, buy_dip_cooldown=42):
     return data, special_declines, buy_the_dip_signals
 
 # Function to plot signals for a specific timeframe
-def plot_signals(data, special_declines, buy_the_dip_signals, start_date, end_date, title):
+def plot_signals(data, special_declines, buy_the_dip_signals, start_date, end_date, title, period):
     filtered_data = data[(data.index >= start_date) & (data.index <= end_date)]
     filtered_special_declines = [date for date in special_declines if start_date <= date <= end_date]
     filtered_buy_the_dip_signals = [date for date in buy_the_dip_signals if start_date <= date <= end_date]
@@ -95,7 +95,9 @@ def plot_signals(data, special_declines, buy_the_dip_signals, start_date, end_da
     plt.ylabel('Price')
     plt.legend()
     plt.grid(True)
-    plt.show()
+    #plt.show()
+    png_file = f'../../static/2023_{period.replace(" ", "_")}.png'
+    plt.savefig(png_file)
 
 # Function to create a signal dictionary
 def create_signal_dict(data, special_declines, buy_the_dip_signals):
@@ -146,9 +148,9 @@ start_date_1w = end_date - timedelta(days=7)
 # Plot signals for different timeframes
 """plot_signals(data, special_declines, buy_the_dip_signals, start_date_1w, end_date, 'SPY with Signals (1 Week)')
 """
-plot_signals(data, special_declines, buy_the_dip_signals, start_date_3m, end_date, 'SPY with Signals (3 Months)')
-plot_signals(data, special_declines, buy_the_dip_signals, start_date_1y, end_date, 'SPY with Signals (1 Year)')
-plot_signals(data, special_declines, buy_the_dip_signals, start_date_5y, end_date, 'SPY with Signals (5 Years)')
+plot_signals(data, special_declines, buy_the_dip_signals, start_date_3m, end_date, 'SPY with Signals (3 Months)', '3 Months')
+plot_signals(data, special_declines, buy_the_dip_signals, start_date_1y, end_date, 'SPY with Signals (1 Year)', '1 Year')
+plot_signals(data, special_declines, buy_the_dip_signals, start_date_5y, end_date, 'SPY with Signals (5 Years)', '5 Years')
 
 # Example usage of the query_signal function
 query_date = '2023-07-01'
@@ -164,4 +166,4 @@ def write_dict_to_json(data_dict, filename):
         json.dump(str_data_dict, json_file, indent=4)
 
 # Write the signal dictionary to a JSON file
-write_dict_to_json(signal_dict, 'papers/buy_sell_dicts/2023_canary.json')
+write_dict_to_json(signal_dict, '../papers/buy_sell_dicts/2023_canary.json')

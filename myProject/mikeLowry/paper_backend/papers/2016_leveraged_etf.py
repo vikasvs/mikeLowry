@@ -20,7 +20,7 @@ def calculate_leverage_rotation(spy_data):
     
     return spy_data
 
-def plot_signals(spy_data, start_date, end_date, title):
+def plot_signals(spy_data, start_date, end_date, title, period):
     # Filter data for the specified period
     plot_data = spy_data.loc[start_date:end_date]
 
@@ -38,7 +38,10 @@ def plot_signals(spy_data, start_date, end_date, title):
     plt.ylabel('SPY Close Price')
     plt.legend()
     plt.grid(True)
-    plt.show()
+    #plt.show()
+ 
+    png_file = f'../../static/2016_{period.replace(" ", "_")}.png'
+    plt.savefig(png_file)
 
 def write_dict_to_json(data_dict, filename):
     """Writes a dictionary to a JSON file."""
@@ -60,7 +63,7 @@ for date in spy_data.index:
     signal_dict[date] = spy_data.loc[date, 'Signal']
 
 # Write signals to JSON file
-write_dict_to_json(signal_dict, 'papers/buy_sell_dicts/2016_leverage.json')
+write_dict_to_json(signal_dict, '../papers/buy_sell_dicts/2016_leverage.json')
 
 # Define the end date and timeframes for plotting
 end_date = pd.to_datetime(datetime.now().date())
@@ -72,4 +75,4 @@ timeframes = {
 
 # Plot for each timeframe
 for period, (start_date, end_date) in timeframes.items():
-    plot_signals(spy_data, start_date, end_date, f'SPY Buy and Sell Signals ({period})')
+    plot_signals(spy_data, start_date, end_date, f'SPY Buy and Sell Signals ({period})', period)

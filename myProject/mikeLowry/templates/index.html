@@ -6,19 +6,194 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Landing Page</title>
+    <!-- Include Google Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            min-height: 100vh;
+            margin: 0;
+            font-family: 'Roboto', sans-serif;
+            background-color: #f5f5f5;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+            font-weight: 700;
+            color: #2c3e50;
+            text-shadow: 2px 2px #ecf0f1;
+        }
+        .logo-container {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .logo {
+            max-width: 250px;
+            width: 100%;
+        }
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            max-width: 1200px;
+            padding: 0 20px;
+        }
+        .container {
+            display: flex;
+            width: 100%;
+            justify-content: center;
+            align-items: flex-start;
+        }
+        .button-container {
+            display: flex;
+            flex-direction: column;
+            margin-right: 20px;
+        }
+        .button-container button {
+            margin-bottom: 10px;
+            padding: 10px 20px;
+            font-size: 1.1em;
+            color: #fff;
+            background-color: #3498db;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .button-container button:hover {
+            background-color: #2980b9;
+        }
+        .bottom-button-container {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+            width: 100%;
+        }
+        .bottom-button-container button {
+            margin-left: 10px;
+            padding: 10px 20px;
+            font-size: 1.1em;
+            color: #fff;
+            background-color: #e67e22;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .bottom-button-container button:hover {
+            background-color: #d35400;
+        }
+        .image-container {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            max-width: 80%;
+            height: 60vh; /* Fixed height for the image container */
+            position: relative;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .image-container img {
+            max-width: 100%;
+            height: auto;
+            max-height: 100%;
+        }
+        .info-box {
+            margin-top: 10px;
+            text-align: center;
+            font-size: 1.4em;
+            color: #2c3e50;
+        }
+    </style>
     <script>
-        function showImage() {
-            document.getElementById("image-container").innerHTML = '<img src="{% static "graph.png" %}" alt="Stock Data Graph">';
+        let lastYear = '';
+        let currentTimeframe = '1_Year';
+
+        function updateInfoBox() {
+            const infoBox = document.getElementById("info-box");
+            if (lastYear && currentTimeframe) {
+                infoBox.textContent = `${lastYear} ${currentTimeframe.replace('_', ' ')}`;
+            } else {
+                infoBox.textContent = '';
+            }
+        }
+
+        function showImage(imageName) {
+            const staticUrl = "{% static '' %}";
+            const imageContainer = document.getElementById("image-container");
+
+            // Preload the image
+            const img = new Image();
+            img.onload = function() {
+                imageContainer.innerHTML = '';
+                imageContainer.appendChild(img);
+            };
+            img.src = staticUrl + imageName;
+            img.alt = "Stock Data Graph";
+
+            const yearMatch = imageName.match(/(\d{4})/);
+            if (yearMatch) {
+                lastYear = yearMatch[1];
+            }
+
+            const timeframeMatch = imageName.match(/(3_Months|1_Year|5_Years)/);
+            if (timeframeMatch) {
+                currentTimeframe = timeframeMatch[1];
+            }
+
+            updateInfoBox();
+        }
+
+        function showTimeframe(timeframe) {
+            currentTimeframe = timeframe;
+            if (lastYear) {
+                showImage(lastYear + '_' + timeframe + '.png');
+            } else {
+                showImage('graph.png');
+            }
+        }
+
+        function switchYear(year) {
+            lastYear = year;
+            showImage(lastYear + '_' + currentTimeframe + '.png');
         }
 
         window.onload = function() {
-            showImage();
+            showImage("graph.png");
         }
     </script>
 </head>
 <body>
-    <h1>Welcome to Stock Data App</h1>
-    <button onclick="showImage()">Master Plot</button>
-    <div id="image-container"></div>
+    <div class="logo-container">
+        <img src="{% static 'horizontal_sigma.png' %}" alt="Sigma Capital Logo" class="logo">
+    </div>
+    <div class="main-content">
+        <div class="container">
+            <div class="button-container">
+                <button onclick="showImage('graph.png')">Master Plot</button>
+                <button onclick="switchYear('2014')">2014</button>
+                <button onclick="switchYear('2016')">2016</button>
+                <button onclick="switchYear('2023')">2023</button>
+            </div>
+            <div class="image-container" id="image-container">
+                <!-- Image will be loaded here -->
+            </div>
+        </div>
+        <div class="bottom-button-container">
+            <button onclick="showTimeframe('3_Months')">3 Months</button>
+            <button onclick="showTimeframe('1_Year')">1 Year</button>
+            <button onclick="showTimeframe('5_Years')">5 Years</button>
+        </div>
+        <div id="info-box" class="info-box"></div>
+    </div>
 </body>
 </html>

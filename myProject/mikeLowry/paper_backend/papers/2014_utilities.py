@@ -67,7 +67,7 @@ def write_dict_to_json(data_dict, filename):
         json.dump(data_dict, json_file, indent=4)
 
 # Write the signals dictionary to a JSON file
-write_dict_to_json(signals_dict, 'papers/buy_sell_dicts/2014_utilities.json')
+write_dict_to_json(signals_dict, '../papers/buy_sell_dicts/2014_utilities.json')
 
 # Define timeframes
 end_date = pd.to_datetime(datetime.now().date())
@@ -95,4 +95,7 @@ for period, start_date in timeframes.items():
     plt.ylabel('Price')
     plt.legend()
     plt.grid(True)
-    plt.show()
+    #plt.show()
+
+    png_file = f'../../static/2014_{period.replace(" ", "_")}.png'
+    plt.savefig(png_file)

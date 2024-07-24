@@ -155,7 +155,7 @@ for label, period in timeframes.items():
     plt.setp(ax.get_xticklabels(), rotation=45, ha='right')
     plt.legend(handles=handles, labels=labels)
     plt.grid(True)
-    plt.show()
-    
-    # to export the graph to png, uncomment the line below
-    # plt.savefig('../resources/graph.png')
+    #plt.show()
+
+    png_file = f'../../static/master_{period.replace(" ", "_")}.png'
+    plt.savefig(png_file)
