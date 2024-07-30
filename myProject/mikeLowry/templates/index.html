@@ -98,20 +98,37 @@
         .bottom-button-container button.active {
             color: #e67e22;
             border-color: #e67e22;
-            background-color: #fff;
+            background-color: #fff.
         }
         .info-box {
             display: none; /* Hide the info box */
+        }
+        .custom-tooltip {
+            position: absolute;
+            pointer-events: none;
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid #dcdcdc;
+            padding: 5px;
+            font-size: 12px;
+            color: #333;
+            z-index: 10;
+            display: none; /* Hidden by default */
+        }
+        .hover-line {
+            position: absolute;
+            width: 1px;
+            background: black;
+            display: none;
+            z-index: 10;
         }
     </style>
 </head>
 <body>
     <div class="main-content">
         <div class="tab-container">
-            <div class="tab active" onclick="switchYear('master')">Master</div>
-            <div class="tab" onclick="switchYear('2014')">2014</div>
-            <div class="tab" onclick="switchYear('2016')">2016</div>
-            <div class="tab" onclick="switchYear('2023')">2023</div>
+            <div class="tab" oncontextmenu="handleRightClick(event, '2014')" onclick="handleTabClick('2014')">2014</div>
+            <div class="tab" oncontextmenu="handleRightClick(event, '2016')" onclick="handleTabClick('2016')">2016</div>
+            <div class="tab" oncontextmenu="handleRightClick(event, '2023')" onclick="handleTabClick('2023')">2023</div>
             <div class="bottom-button-container">
                 <button type="button" onclick="showTimeframe('3_Months')">3M</button>
                 <button type="button" class="active" onclick="showTimeframe('1_Year')">1Y</button>
@@ -120,167 +137,139 @@
         </div>
         <div class="plot-container" id="plot-container">
             <!-- Plotly plot will be rendered here -->
+            <div class="custom-tooltip" id="tooltip"></div>
+            <div class="hover-line" id="hover-line"></div>
         </div>
     </div>
 
     <script>
         console.log("JavaScript loaded");
 
-        let lastYear = 'master';
+        let selectedYears = [];
         let currentTimeframe = '1_Year';
+
+        const timeframes = {
+            '3_Months': 3 * 30 * 24 * 60 * 60 * 1000,
+            '1_Year': 365 * 24 * 60 * 60 * 1000,
+            '5_Years': 5 * 365 * 24 * 60 * 60 * 1000
+        };
+
+        const markerSizes = {
+            '3_Months': 12,
+            '1_Year': 9,
+            '5_Years': 7
+        };
 
         function updateInfoBox() {
             // Info box is hidden, no need to update it
         }
 
-        function fetchAndRenderPlotlyChart(year, timeframe) {
-            console.log("Fetching and rendering Plotly chart for: " + year + " " + timeframe);
-            const jsonUrl = "{% static '' %}" + year + '_' + timeframe + '_plotly.json';
-            console.log("JSON URL: " + jsonUrl);
+        function fetchAndRenderPlotlyChart(years, timeframe) {
+            console.log("Fetching and rendering Plotly chart for: " + years + " " + timeframe);
+            const jsonUrls = years.map(year => "{% static '' %}" + year + '_5_Years_plotly.json');
+            console.log("JSON URLs: " + jsonUrls);
 
-            fetch(jsonUrl)
-                .then(response => {
-                    console.log("Fetch response status: " + response.status);
-                    if (!response.ok) {
-                        throw new Error('Network response was not ok');
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    console.log("Data received: ", data);
+            Promise.all(jsonUrls.map(url => fetch(url).then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })))
+            .then(datasets => {
+                const plotData = [];
+                let xMin = Infinity;
+                let xMax = -Infinity;
+                let allYValues = [];
 
+                datasets.forEach((data, index) => {
                     if (!data.date || !data.close || !data.inflection_points) {
                         throw new Error('Invalid data format');
                     }
 
-                    const trace1 = {
-                        x: data.date,
+                    const dates = data.date.map(date => new Date(date));
+                    xMin = Math.min(xMin, ...dates);
+                    xMax = Math.max(xMax, ...dates);
+
+                    const trace = {
+                        x: dates,
                         y: data.close,
                         mode: 'lines',
-                        name: 'SPY',
-                        line: { color: 'black' }
+                        name: years[index],
+                        line: { color: 'black', width: 2 }, // Keep plots black
+                        opacity: 0.6, // Make plot lines slightly transparent
+                        hoverinfo: 'none' // Disable hover info for lines
                     };
 
                     const buySignals = {
-                        x: data.inflection_points.filter(point => point.signal === 'Buy').map(point => point.date),
+                        x: data.inflection_points.filter(point => point.signal === 'Buy').map(point => new Date(point.date)),
                         y: data.inflection_points.filter(point => point.signal === 'Buy').map(point => data.close[data.date.indexOf(point.date)]),
                         mode: 'markers',
-                        marker: { color: 'green', size: 10 },
-                        name: 'Buy'
+                        marker: { color: 'green', size: markerSizes[timeframe], symbol: 'circle', line: { width: 2, color: 'black' } },
+                        name: 'Buy',
+                        textposition: 'top',
+                        hoverinfo: 'none' // Hide hover info for individual points
                     };
 
                     const sellSignals = {
-                        x: data.inflection_points.filter(point => point.signal === 'Sell').map(point => point.date),
+                        x: data.inflection_points.filter(point => point.signal === 'Sell').map(point => new Date(point.date)),
                         y: data.inflection_points.filter(point => point.signal === 'Sell').map(point => data.close[data.date.indexOf(point.date)]),
                         mode: 'markers',
-                        marker: { color: 'red', size: 10 },
-                        name: 'Sell'
+                        marker: { color: 'red', size: markerSizes[timeframe], symbol: 'circle', line: { width: 2, color: 'black' } },
+                        name: 'Sell',
+                        textposition: 'top',
+                        hoverinfo: 'none' // Hide hover info for individual points
                     };
 
-                    console.log("Buy signals: ", buySignals);
-                    console.log("Sell signals: ", sellSignals);
-
-                    // Adjust y-axis range to add space above and below
-                    const yRange = [Math.min(...data.close) * 0.95, Math.max(...data.close) * 1.05];
-
-                    const layout = {
-                        title: `${year} ${timeframe.replace('_', ' ')}`,
-                        xaxis: {
-                            title: 'Date',
-                            range: data.layout.xaxis.range,
-                            showgrid: false // Remove grid lines
-                        },
-                        yaxis: {
-                            title: 'Close Price',
-                            range: yRange,
-                            showgrid: false, // Remove grid lines
-                            side: 'right', // Position y-axis on the right
-                            overlaying: 'free', // Ensure the y-axis is not under anything
-                            position: 1.05 // Move the y-axis further to the right
-                        },
-                        margin: {
-                            t: 60, // Increase top margin for title
-                            r: 200, // Increase right margin for better y-axis visibility
-                            b: 60, // Add margin to the bottom to avoid overcrowding
-                            l: 0 // Remove left margin to integrate with tabs
-                        },
-                        dragmode: 'zoom', // Enable zoom mode
-                        hovermode: 'x unified', // Show vertical line and hover information
-                        shapes: [
-                            {
-                                type: 'line',
-                                xref: 'x',
-                                yref: 'paper',
-                                x0: 0,
-                                y0: 0,
-                                x1: 0,
-                                y1: 1,
-                                line: {
-                                    color: 'gray',
-                                    width: 1,
-                                    dash: 'dot'
-                                }
-                            }
-                        ]
-                    };
-
-                    const plotData = [trace1, buySignals, sellSignals];
-
-                    Plotly.newPlot('plot-container', plotData, layout);
-
-                    const plotDiv = document.getElementById('plot-container');
-
-                    plotDiv.on('plotly_hover', function(data) {
-                        var infotext = data.points.map(function(d) {
-                            return (d.data.name + ': x= ' + d.x + ', y= ' + d.y.toPrecision(3));
-                        });
-
-                        Plotly.Fx.hover(plotDiv, [
-                            {
-                                curveNumber: data.points[0].curveNumber,
-                                pointNumber: data.points[0].pointNumber
-                            }
-                        ]);
-
-                        // Update the hover point
-                        Plotly.Fx.loneHover({
-                            xval: data.points[0].x,
-                            yval: data.points[0].y,
-                            name: data.points[0].data.name,
-                            hovermode: 'closest',
-                            axis: plotDiv.layout.xaxis
-                        });
-                    });
-
-                    plotDiv.on('plotly_unhover', function() {
-                        Plotly.Fx.loneUnhover(plotDiv);
-                    });
-
-                    plotDiv.on('plotly_click', function(data) {
-                        var infotext = data.points.map(function(d) {
-                            return (d.data.name + ': x= ' + d.x + ', y= ' + d.y.toPrecision(3));
-                        });
-
-                        Plotly.Fx.hover(plotDiv, [
-                            {
-                                curveNumber: data.points[0].curveNumber,
-                                pointNumber: data.points[0].pointNumber
-                            }
-                        ]);
-
-                        // Update the hover point
-                        Plotly.Fx.loneHover({
-                            xval: data.points[0].x,
-                            yval: data.points[0].y,
-                            name: data.points[0].data.name,
-                            hovermode: 'closest',
-                            axis: plotDiv.layout.xaxis
-                        });
-                    });
-                })
-                .catch(error => {
-                    console.error('Error fetching JSON data:', error);
+                    allYValues = allYValues.concat(data.close);
+                    plotData.push(trace, buySignals, sellSignals);
                 });
+
+                const selectedXRange = [new Date(xMax - timeframes[timeframe]), new Date(xMax)];
+                const visibleYValues = plotData.flatMap(trace => trace.y).filter((_, i) => plotData[0].x[i] >= selectedXRange[0]);
+                const yRange = [
+                    Math.min(...visibleYValues) * 0.95,
+                    Math.max(...visibleYValues) * 1.05
+                ];
+
+                const layout = {
+                    title: `${years.join(', ')} ${timeframe.replace('_', ' ')}`,
+                    xaxis: {
+                        range: selectedXRange,
+                        showgrid: true, // Show grid lines
+                        zeroline: true, // Show x-axis
+                        zerolinewidth: 2, // Width of the x-axis
+                        tickvals: plotData[0].x.filter((_, i) => i % Math.floor(plotData[0].x.length / 10) === 0 && i !== 0), // Reduce number of ticks and avoid the first tick
+                        ticktext: plotData[0].x.filter((_, i) => i % Math.floor(plotData[0].x.length / 10) === 0 && i !== 0).map(d => d.toLocaleDateString()), // Format tick text
+                        tickangle: -45 // Rotate tick labels
+                    },
+                    yaxis: {
+                        range: yRange,
+                        showgrid: true, // Show grid lines
+                        zeroline: true, // Show y-axis
+                        zerolinewidth: 2, // Width of the y-axis
+                        side: 'right', // Position y-axis on the right
+                        overlaying: 'free', // Ensure the y-axis is not under anything
+                        position: 1.00 // Move the y-axis further to the right
+                    },
+                    margin: {
+                        t: 60, // Increase top margin for title
+                        r: 60, // Adjust right margin for better y-axis visibility
+                        b: 60, // Add margin to the bottom to avoid overcrowding
+                        l: 0 // Remove left margin to integrate with tabs
+                    },
+                    dragmode: 'pan', // Enable pan mode
+                    hovermode: 'x unified', // Enable unified hover mode
+                    showlegend: false // Disable legend
+                };
+
+                Plotly.newPlot('plot-container', plotData, layout);
+
+                const plotDiv = document.getElementById('plot-container');
+
+            })
+            .catch(error => {
+                console.error('Error fetching JSON data:', error);
+            });
         }
 
         function showTimeframe(timeframe) {
@@ -290,22 +279,42 @@
                 button.classList.remove('active');
             });
             document.querySelector(`.bottom-button-container button[onclick="showTimeframe('${timeframe}')"]`).classList.add('active');
-            fetchAndRenderPlotlyChart(lastYear, currentTimeframe);
+            fetchAndRenderPlotlyChart(selectedYears, currentTimeframe);
         }
 
-        function switchYear(year) {
-            lastYear = year;
-            console.log("Switching year to: " + year);
+        function handleTabClick(year) {
+            selectedYears = [year];
+            console.log("Selected years: " + selectedYears);
             document.querySelectorAll('.tab').forEach(tab => {
                 tab.classList.remove('active');
             });
-            document.querySelector(`.tab[onclick="switchYear('${year}')"]`).classList.add('active');
-            fetchAndRenderPlotlyChart(lastYear, currentTimeframe);
+            document.querySelector(`.tab[onclick="handleTabClick('${year}')"]`).classList.add('active');
+            fetchAndRenderPlotlyChart(selectedYears, currentTimeframe);
+        }
+
+        function handleRightClick(event, year) {
+            event.preventDefault(); // Prevent the default context menu
+            console.log("Right-clicked on tab: " + year);
+            if (selectedYears.includes(year)) {
+                selectedYears = selectedYears.filter(y => y !== year);
+                document.querySelector(`.tab[onclick="handleTabClick('${year}')"]`).classList.remove('active');
+            } else {
+                addTab(year);
+            }
+            fetchAndRenderPlotlyChart(selectedYears, currentTimeframe);
+        }
+
+        function addTab(year) {
+            if (!selectedYears.includes(year)) {
+                selectedYears.push(year);
+                document.querySelector(`.tab[onclick="handleTabClick('${year}')"]`).classList.add('active');
+                fetchAndRenderPlotlyChart(selectedYears, currentTimeframe);
+            }
         }
 
         window.onload = function() {
             console.log("Window loaded");
-            fetchAndRenderPlotlyChart('master', '1_Year');
+            handleTabClick('2014');
         }
 
         // Resize Plotly chart when window is resized
