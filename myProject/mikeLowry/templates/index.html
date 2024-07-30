@@ -98,7 +98,7 @@
         .bottom-button-container button.active {
             color: #e67e22;
             border-color: #e67e22;
-            background-color: #fff.
+            background-color: #fff; /* Corrected from . to ; */
         }
         .info-box {
             display: none; /* Hide the info box */
@@ -121,6 +121,21 @@
             display: none;
             z-index: 10;
         }
+        .tutorial-box {
+            position: fixed;
+            top: 80px; /* Adjust to be below the title */
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-size: 14px;
+            display: none; /* Hidden by default */
+            opacity: 0; /* Transparent by default */
+            transition: opacity 0.5s; /* Fade transition */
+            z-index: 20;
+        }
     </style>
 </head>
 <body>
@@ -130,6 +145,7 @@
             <div class="tab" oncontextmenu="handleRightClick(event, '2016')" onclick="handleTabClick('2016')">2016</div>
             <div class="tab" oncontextmenu="handleRightClick(event, '2023')" onclick="handleTabClick('2023')">2023</div>
             <div class="bottom-button-container">
+                <button type="button" onclick="showTimeframe('1_Week')">1W</button>
                 <button type="button" onclick="showTimeframe('3_Months')">3M</button>
                 <button type="button" class="active" onclick="showTimeframe('1_Year')">1Y</button>
                 <button type="button" onclick="showTimeframe('5_Years')">5Y</button>
@@ -142,6 +158,8 @@
         </div>
     </div>
 
+    <div class="tutorial-box" id="tutorial-box"></div>
+
     <script>
         console.log("JavaScript loaded");
 
@@ -149,12 +167,14 @@
         let currentTimeframe = '1_Year';
 
         const timeframes = {
+            '1_Week': 7 * 24 * 60 * 60 * 1000,
             '3_Months': 3 * 30 * 24 * 60 * 60 * 1000,
             '1_Year': 365 * 24 * 60 * 60 * 1000,
             '5_Years': 5 * 365 * 24 * 60 * 60 * 1000
         };
 
         const markerSizes = {
+            '1_Week': 15,
             '3_Months': 12,
             '1_Year': 9,
             '5_Years': 7
@@ -231,6 +251,23 @@
                     Math.max(...visibleYValues) * 1.05
                 ];
 
+                let xTickFormat;
+                let xTickVals;
+
+                if (timeframe === '1_Week') {
+                    xTickFormat = '%Y-%m-%d'; // Daily format
+                    xTickVals = plotData[0].x; // Show all daily ticks
+                } else if (timeframe === '3_Months') {
+                    xTickFormat = '%Y-%m-%d'; // Weekly format
+                    xTickVals = plotData[0].x.filter((_, i) => i % 7 === 0); // Approximate weekly ticks
+                } else if (timeframe === '1_Year') {
+                    xTickFormat = '%Y-%m'; // Monthly format
+                    xTickVals = plotData[0].x.filter((_, i) => i % 30 === 0); // Approximate monthly ticks
+                } else {
+                    xTickFormat = '%Y-%m'; // Default to monthly format for other timeframes
+                    xTickVals = plotData[0].x.filter((_, i) => i % 30 === 0); // Approximate monthly ticks
+                }
+
                 const layout = {
                     title: `${years.join(', ')} ${timeframe.replace('_', ' ')}`,
                     xaxis: {
@@ -238,8 +275,8 @@
                         showgrid: true, // Show grid lines
                         zeroline: true, // Show x-axis
                         zerolinewidth: 2, // Width of the x-axis
-                        tickvals: plotData[0].x.filter((_, i) => i % Math.floor(plotData[0].x.length / 10) === 0 && i !== 0), // Reduce number of ticks and avoid the first tick
-                        ticktext: plotData[0].x.filter((_, i) => i % Math.floor(plotData[0].x.length / 10) === 0 && i !== 0).map(d => d.toLocaleDateString()), // Format tick text
+                        tickvals: xTickVals, // Set tick values
+                        tickformat: xTickFormat, // Set tick format
                         tickangle: -45 // Rotate tick labels
                     },
                     yaxis: {
@@ -261,6 +298,10 @@
                     hovermode: 'x unified', // Enable unified hover mode
                     showlegend: false // Disable legend
                 };
+
+                plotData.forEach(trace => {
+                    trace.hovertemplate = '%{x|%Y-%m-%d}<br>Price: %{y:.2f}<extra></extra>';
+                });
 
                 Plotly.newPlot('plot-container', plotData, layout);
 
@@ -312,9 +353,41 @@
             }
         }
 
+        function showTutorial() {
+            const tutorialBox = document.getElementById('tutorial-box');
+            const steps = [
+                'Click on the year tabs (2014, 2016, 2023) to view data for that year.',
+                'Click on the timeframe buttons (1W, 3M, 1Y, 5Y) to change the data timeframe.',
+                'Right-click on a year tab to add or remove it from the chart.'
+            ];
+
+            let stepIndex = 0;
+
+            function showNextStep() {
+                if (stepIndex < steps.length) {
+                    tutorialBox.innerText = steps[stepIndex];
+                    tutorialBox.style.display = 'block';
+                    setTimeout(() => {
+                        tutorialBox.style.opacity = 1;
+                        setTimeout(() => {
+                            tutorialBox.style.opacity = 0;
+                            setTimeout(() => {
+                                tutorialBox.style.display = 'none';
+                                stepIndex++;
+                                showNextStep();
+                            }, 1000); // Fade-out duration
+                        }, 5000); // Display duration
+                    }, 1000); // Fade-in duration
+                }
+            }
+
+            showNextStep();
+        }
+
         window.onload = function() {
             console.log("Window loaded");
             handleTabClick('2014');
+            setTimeout(showTutorial, 1000); // Start tutorial after 1 second
         }
 
         // Resize Plotly chart when window is resized
