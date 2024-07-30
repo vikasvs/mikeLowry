@@ -165,6 +165,10 @@
 
         let selectedYears = [];
         let currentTimeframe = '1_Year';
+        let xMinGlobal = null;
+        let xMaxGlobal = null;
+        let initialXRange = null;
+        const minZoomRange = 7 * 24 * 60 * 60 * 1000; // Minimum zoom range: 1 week
 
         const timeframes = {
             '1_Week': 7 * 24 * 60 * 60 * 1000,
@@ -244,7 +248,12 @@
                     plotData.push(trace, buySignals, sellSignals);
                 });
 
+                xMinGlobal = new Date(xMin);
+                xMaxGlobal = new Date(xMax);
+
                 const selectedXRange = [new Date(xMax - timeframes[timeframe]), new Date(xMax)];
+                initialXRange = selectedXRange.slice(); // Store the initial range
+
                 const visibleYValues = plotData.flatMap(trace => trace.y).filter((_, i) => plotData[0].x[i] >= selectedXRange[0]);
                 const yRange = [
                     Math.min(...visibleYValues) * 0.95,
@@ -277,7 +286,8 @@
                         zerolinewidth: 2, // Width of the x-axis
                         tickvals: xTickVals, // Set tick values
                         tickformat: xTickFormat, // Set tick format
-                        tickangle: -45 // Rotate tick labels
+                        tickangle: -45, // Rotate tick labels
+                        rangeslider: { visible: false } // Hide range slider
                     },
                     yaxis: {
                         range: yRange,
@@ -296,7 +306,8 @@
                     },
                     dragmode: 'pan', // Enable pan mode
                     hovermode: 'x unified', // Enable unified hover mode
-                    showlegend: false // Disable legend
+                    showlegend: false, // Disable legend
+                    scrollZoom: true // Enable scroll zoom
                 };
 
                 plotData.forEach(trace => {
@@ -307,6 +318,28 @@
 
                 const plotDiv = document.getElementById('plot-container');
 
+                plotDiv.on('plotly_relayout', event => {
+                    let outOfBounds = false;
+                    if (event['xaxis.range[0]'] && event['xaxis.range[1]']) {
+                        let newRangeStart = new Date(event['xaxis.range[0]']);
+                        let newRangeEnd = new Date(event['xaxis.range[1]']);
+
+                        if (newRangeStart < xMinGlobal || newRangeEnd > xMaxGlobal) {
+                            outOfBounds = true;
+                        }
+
+                        const newRange = newRangeEnd - newRangeStart;
+                        if (newRange < minZoomRange) {
+                            outOfBounds = true;
+                        }
+
+                        if (outOfBounds) {
+                            showTimeframe(currentTimeframe);
+                        } else {
+                            initialXRange = [newRangeStart, newRangeEnd];
+                        }
+                    }
+                });
             })
             .catch(error => {
                 console.error('Error fetching JSON data:', error);
