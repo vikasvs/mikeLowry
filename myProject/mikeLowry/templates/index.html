@@ -1,195 +1,317 @@
-<!-- LANDING PAGE - contains buttons for every paper -->
 {% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Landing Page</title>
-    <!-- Include Google Font -->
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@700&display=swap" rel="stylesheet">
+    <title>Stock Data Visualization</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <style>
         body {
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: flex-start;
-            min-height: 100vh;
+            height: 100vh;
             margin: 0;
             font-family: 'Roboto', sans-serif;
             background-color: #f5f5f5;
-        }
-        .header {
-            text-align: center;
-            margin-bottom: 10px;
-            font-size: 2.5em;
-            font-weight: 700;
-            color: #2c3e50;
-            text-shadow: 2px 2px #ecf0f1;
-        }
-        .logo-container {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        .logo {
-            max-width: 250px;
-            width: 100%;
+            overflow: hidden; /* Prevent scrollbars */
         }
         .main-content {
             display: flex;
+            flex-direction: row;
+            width: 100%;
+            height: 100%; /* Full height */
+            box-sizing: border-box;
+        }
+        .tab-container {
+            display: flex;
             flex-direction: column;
             align-items: center;
-            width: 100%;
-            max-width: 1200px;
-            padding: 0 20px;
+            background-color: rgba(255, 255, 255, 0.5); /* Translucent background */
+            height: 100%; /* Full height */
+            z-index: 1; /* Ensure it is above the plot */
         }
-        .container {
+        .tab {
             display: flex;
-            width: 100%;
+            align-items: center;
             justify-content: center;
-            align-items: flex-start;
-        }
-        .button-container {
-            display: flex;
-            flex-direction: column;
-            margin-right: 20px;
-        }
-        .button-container button {
-            margin-bottom: 10px;
-            padding: 10px 20px;
-            font-size: 1.1em;
-            color: #fff;
-            background-color: #3498db;
-            border: none;
-            border-radius: 5px;
+            width: 100px;
+            padding: 15px;
+            font-size: 1em;
+            color: #000;
+            background-color: rgba(255, 255, 255, 0.5); /* Translucent background */
+            border: none; /* No distinct border */
             cursor: pointer;
-            transition: background-color 0.3s;
+            transition: background-color 0.3s, color 0.3s;
+            box-sizing: border-box;
         }
-        .button-container button:hover {
-            background-color: #2980b9;
+        .tab:hover {
+            background-color: rgba(255, 255, 255, 0.7); /* Lighter translucent background */
+            color: #e67e22; /* Change color on hover */
         }
-        .bottom-button-container {
-            display: flex;
-            justify-content: center;
-            margin-top: 20px;
-            width: 100%;
+        .tab.active {
+            background-color: rgba(255, 255, 255, 0.7); /* Lighter translucent background */
+            color: #e67e22; /* Change color on active */
         }
-        .bottom-button-container button {
-            margin-left: 10px;
-            padding: 10px 20px;
-            font-size: 1.1em;
-            color: #fff;
-            background-color: #e67e22;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background-color 0.3s;
-        }
-        .bottom-button-container button:hover {
-            background-color: #d35400;
-        }
-        .image-container {
+        .plot-container {
             flex-grow: 1;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            max-width: 80%;
-            height: 60vh; /* Fixed height for the image container */
-            position: relative;
+            height: 100%; /* Use remaining height */
+            padding: 0;
             background-color: #fff;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            box-sizing: border-box;
+            overflow: hidden; /* Prevent scrollbars */
+            position: relative; /* For z-index control */
+            z-index: 0; /* Ensure it is below the tab-container */
         }
-        .image-container img {
-            max-width: 100%;
-            height: auto;
-            max-height: 100%;
+        .bottom-button-container {
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            width: 100px;
+            margin-top: auto;
+            box-sizing: border-box;
+        }
+        .bottom-button-container button {
+            width: 100%;
+            padding: 10px;
+            font-size: 0.9em;
+            color: #000;
+            background-color: rgba(255, 255, 255, 0.7);
+            border: none;
+            border-bottom: 2px solid transparent;
+            cursor: pointer;
+            transition: border-color 0.3s, color 0.3s;
+            border-radius: 0;
+            box-sizing: border-box;
+        }
+        .bottom-button-container button:hover {
+            color: #e67e22;
+            border-color: #e67e22;
+            background-color: #fff;
+        }
+        .bottom-button-container button.active {
+            color: #e67e22;
+            border-color: #e67e22;
+            background-color: #fff;
         }
         .info-box {
-            margin-top: 10px;
-            text-align: center;
-            font-size: 1.4em;
-            color: #2c3e50;
+            display: none; /* Hide the info box */
         }
     </style>
+</head>
+<body>
+    <div class="main-content">
+        <div class="tab-container">
+            <div class="tab active" onclick="switchYear('master')">Master</div>
+            <div class="tab" onclick="switchYear('2014')">2014</div>
+            <div class="tab" onclick="switchYear('2016')">2016</div>
+            <div class="tab" onclick="switchYear('2023')">2023</div>
+            <div class="bottom-button-container">
+                <button type="button" onclick="showTimeframe('3_Months')">3M</button>
+                <button type="button" class="active" onclick="showTimeframe('1_Year')">1Y</button>
+                <button type="button" onclick="showTimeframe('5_Years')">5Y</button>
+            </div>
+        </div>
+        <div class="plot-container" id="plot-container">
+            <!-- Plotly plot will be rendered here -->
+        </div>
+    </div>
+
     <script>
+        console.log("JavaScript loaded");
+
         let lastYear = 'master';
         let currentTimeframe = '1_Year';
 
         function updateInfoBox() {
-            const infoBox = document.getElementById("info-box");
-            if (lastYear && currentTimeframe) {
-                infoBox.textContent = `${lastYear} ${currentTimeframe.replace('_', ' ')}`;
-            } else {
-                infoBox.textContent = '';
-            }
+            // Info box is hidden, no need to update it
         }
 
-        function showImage(imageName) {
-            const staticUrl = "{% static '' %}";
-            const imageContainer = document.getElementById("image-container");
+        function fetchAndRenderPlotlyChart(year, timeframe) {
+            console.log("Fetching and rendering Plotly chart for: " + year + " " + timeframe);
+            const jsonUrl = "{% static '' %}" + year + '_' + timeframe + '_plotly.json';
+            console.log("JSON URL: " + jsonUrl);
 
-            // Preload the image
-            const img = new Image();
-            img.onload = function() {
-                imageContainer.innerHTML = '';
-                imageContainer.appendChild(img);
-            };
-            img.src = staticUrl + imageName;
-            img.alt = "Stock Data Graph";
+            fetch(jsonUrl)
+                .then(response => {
+                    console.log("Fetch response status: " + response.status);
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log("Data received: ", data);
 
-            const yearMatch = imageName.match(/(\d{4}|master)/);
-            if (yearMatch) {
-                lastYear = yearMatch[1];
-            }
+                    if (!data.date || !data.close || !data.inflection_points) {
+                        throw new Error('Invalid data format');
+                    }
 
-            const timeframeMatch = imageName.match(/(3_Months|1_Year|5_Years)/);
-            if (timeframeMatch) {
-                currentTimeframe = timeframeMatch[1];
-            }
+                    const trace1 = {
+                        x: data.date,
+                        y: data.close,
+                        mode: 'lines',
+                        name: 'SPY',
+                        line: { color: 'black' }
+                    };
 
-            updateInfoBox();
+                    const buySignals = {
+                        x: data.inflection_points.filter(point => point.signal === 'Buy').map(point => point.date),
+                        y: data.inflection_points.filter(point => point.signal === 'Buy').map(point => data.close[data.date.indexOf(point.date)]),
+                        mode: 'markers',
+                        marker: { color: 'green', size: 10 },
+                        name: 'Buy'
+                    };
+
+                    const sellSignals = {
+                        x: data.inflection_points.filter(point => point.signal === 'Sell').map(point => point.date),
+                        y: data.inflection_points.filter(point => point.signal === 'Sell').map(point => data.close[data.date.indexOf(point.date)]),
+                        mode: 'markers',
+                        marker: { color: 'red', size: 10 },
+                        name: 'Sell'
+                    };
+
+                    console.log("Buy signals: ", buySignals);
+                    console.log("Sell signals: ", sellSignals);
+
+                    // Adjust y-axis range to add space above and below
+                    const yRange = [Math.min(...data.close) * 0.95, Math.max(...data.close) * 1.05];
+
+                    const layout = {
+                        title: `${year} ${timeframe.replace('_', ' ')}`,
+                        xaxis: {
+                            title: 'Date',
+                            range: data.layout.xaxis.range,
+                            showgrid: false // Remove grid lines
+                        },
+                        yaxis: {
+                            title: 'Close Price',
+                            range: yRange,
+                            showgrid: false, // Remove grid lines
+                            side: 'right', // Position y-axis on the right
+                            overlaying: 'free', // Ensure the y-axis is not under anything
+                            position: 1.05 // Move the y-axis further to the right
+                        },
+                        margin: {
+                            t: 60, // Increase top margin for title
+                            r: 200, // Increase right margin for better y-axis visibility
+                            b: 60, // Add margin to the bottom to avoid overcrowding
+                            l: 0 // Remove left margin to integrate with tabs
+                        },
+                        dragmode: 'zoom', // Enable zoom mode
+                        hovermode: 'x unified', // Show vertical line and hover information
+                        shapes: [
+                            {
+                                type: 'line',
+                                xref: 'x',
+                                yref: 'paper',
+                                x0: 0,
+                                y0: 0,
+                                x1: 0,
+                                y1: 1,
+                                line: {
+                                    color: 'gray',
+                                    width: 1,
+                                    dash: 'dot'
+                                }
+                            }
+                        ]
+                    };
+
+                    const plotData = [trace1, buySignals, sellSignals];
+
+                    Plotly.newPlot('plot-container', plotData, layout);
+
+                    const plotDiv = document.getElementById('plot-container');
+
+                    plotDiv.on('plotly_hover', function(data) {
+                        var infotext = data.points.map(function(d) {
+                            return (d.data.name + ': x= ' + d.x + ', y= ' + d.y.toPrecision(3));
+                        });
+
+                        Plotly.Fx.hover(plotDiv, [
+                            {
+                                curveNumber: data.points[0].curveNumber,
+                                pointNumber: data.points[0].pointNumber
+                            }
+                        ]);
+
+                        // Update the hover point
+                        Plotly.Fx.loneHover({
+                            xval: data.points[0].x,
+                            yval: data.points[0].y,
+                            name: data.points[0].data.name,
+                            hovermode: 'closest',
+                            axis: plotDiv.layout.xaxis
+                        });
+                    });
+
+                    plotDiv.on('plotly_unhover', function() {
+                        Plotly.Fx.loneUnhover(plotDiv);
+                    });
+
+                    plotDiv.on('plotly_click', function(data) {
+                        var infotext = data.points.map(function(d) {
+                            return (d.data.name + ': x= ' + d.x + ', y= ' + d.y.toPrecision(3));
+                        });
+
+                        Plotly.Fx.hover(plotDiv, [
+                            {
+                                curveNumber: data.points[0].curveNumber,
+                                pointNumber: data.points[0].pointNumber
+                            }
+                        ]);
+
+                        // Update the hover point
+                        Plotly.Fx.loneHover({
+                            xval: data.points[0].x,
+                            yval: data.points[0].y,
+                            name: data.points[0].data.name,
+                            hovermode: 'closest',
+                            axis: plotDiv.layout.xaxis
+                        });
+                    });
+                })
+                .catch(error => {
+                    console.error('Error fetching JSON data:', error);
+                });
         }
 
         function showTimeframe(timeframe) {
             currentTimeframe = timeframe;
-            showImage(lastYear + '_' + timeframe + '.png');
+            console.log("Switching timeframe to: " + timeframe);
+            document.querySelectorAll('.bottom-button-container button').forEach(button => {
+                button.classList.remove('active');
+            });
+            document.querySelector(`.bottom-button-container button[onclick="showTimeframe('${timeframe}')"]`).classList.add('active');
+            fetchAndRenderPlotlyChart(lastYear, currentTimeframe);
         }
 
         function switchYear(year) {
             lastYear = year;
-            showImage(lastYear + '_' + currentTimeframe + '.png');
+            console.log("Switching year to: " + year);
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelector(`.tab[onclick="switchYear('${year}')"]`).classList.add('active');
+            fetchAndRenderPlotlyChart(lastYear, currentTimeframe);
         }
 
         window.onload = function() {
-            showImage("master_1_Year.png");
+            console.log("Window loaded");
+            fetchAndRenderPlotlyChart('master', '1_Year');
+        }
+
+        // Resize Plotly chart when window is resized
+        window.onresize = function() {
+            Plotly.Plots.resize(document.getElementById('plot-container'));
         }
     </script>
-</head>
-<body>
-    <div class="logo-container">
-        <img src="{% static 'horizontal_sigma.png' %}" alt="Sigma Capital Logo" class="logo">
-    </div>
-    <div class="main-content">
-        <div class="container">
-            <div class="button-container">
-                <button onclick="showImage('master_1_Year.png')">Master Plot</button>
-                <button onclick="switchYear('2014')">2014</button>
-                <button onclick="switchYear('2016')">2016</button>
-                <button onclick="switchYear('2023')">2023</button>
-            </div>
-            <div class="image-container" id="image-container">
-                <!-- Image will be loaded here -->
-            </div>
-        </div>
-        <div class="bottom-button-container">
-            <button onclick="showTimeframe('3_Months')">3 Months</button>
-            <button onclick="showTimeframe('1_Year')">1 Year</button>
-            <button onclick="showTimeframe('5_Years')">5 Years</button>
-        </div>
-        <div id="info-box" class="info-box"></div>
-    </div>
 </body>
 </html>

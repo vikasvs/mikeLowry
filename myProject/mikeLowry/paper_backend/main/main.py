@@ -1,15 +1,21 @@
-import json
-from collections import defaultdict
-import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
 import yfinance as yf
 import pandas as pd
+import numpy as np
+import json
 from datetime import datetime, timedelta
-import matplotlib.colors as mcolors
 import os
+from collections import defaultdict
 
-# Path to the directory containing the JSON files
-json_directory = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'papers', 'buy_sell_dicts'))
+# Define the base directory for static files
+base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../static'))
+# Create static directory if it doesn't exist
+os.makedirs(base_dir, exist_ok=True)
+
+# Fetch historical data for SPY
+spy_ticker = 'SPY'
+start_date = '1980-01-01'
+spy_data = yf.Ticker(spy_ticker).history(start=start_date, interval='1d')
+spy_data.index = spy_data.index.tz_convert(None)
 
 # Initialize a dictionary to hold the tally of "Buy" signals and inflection points
 buy_tally = defaultdict(lambda: {'buy': 0, 'total': 0})
@@ -25,16 +31,16 @@ def find_inflection_points(signals):
         prev_signal = signal
     return inflection_points
 
-# Iterate over all JSON files in the directory
+# Load signals from JSON files
+json_directory = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'papers', 'buy_sell_dicts'))
 for filename in os.listdir(json_directory):
     if filename.endswith('.json'):
         filepath = os.path.join(json_directory, filename)
         with open(filepath, 'r') as file:
             signals = json.load(file)
-            # Find inflection points
             inflection_points = find_inflection_points(signals)
             inflection_points_dict[filename] = inflection_points
-            
+
             for date, signal in signals.items():
                 buy_tally[date]['total'] += 1
                 if signal == 'Buy':
@@ -43,48 +49,65 @@ for filename in os.listdir(json_directory):
 # Calculate the percentage of "Buy" signals for each date
 buy_percentage = {date: (data['buy'] / data['total']) * 100 for date, data in buy_tally.items() if data['total'] > 0}
 
-# Write the results to new JSON files
-output_buy_percentage_filepath = os.path.abspath(os.path.join(os.path.dirname(__file__), 'buy_percentage.json'))
-with open(output_buy_percentage_filepath, 'w') as outfile:
-    json.dump(buy_percentage, outfile, indent=4)
-
-output_inflection_points_filepath = os.path.abspath(os.path.join(os.path.dirname(__file__), 'inflection_points.json'))
-with open(output_inflection_points_filepath, 'w') as outfile:
-    json.dump(inflection_points_dict, outfile, indent=4)
-
-# Load SPY data
-spy_ticker = 'SPY'
-spy_data = yf.Ticker(spy_ticker).history(start='2009-01-01', end='2024-06-30', interval='1d')
-spy_data.index = spy_data.index.tz_convert(None)
-
-# Calculate the 200-day Simple Moving Average (SMA)
-spy_data['200_SMA'] = spy_data['Close'].rolling(window=200).mean()
-
-# Adjust SPY data timestamps to match the buy_percentage_df date format
-spy_data.index = spy_data.index.normalize()
-
 # Create a DataFrame for the buy percentage
 buy_percentage_df = pd.DataFrame(list(buy_percentage.items()), columns=['Date', 'Buy_Percentage'])
 buy_percentage_df['Date'] = pd.to_datetime(buy_percentage_df['Date'])
 buy_percentage_df.set_index('Date', inplace=True)
 
-# Filter buy_percentage_df to match the spy_data date range if necessary
-buy_percentage_df = buy_percentage_df.loc[(buy_percentage_df.index >= spy_data.index.min()) & (buy_percentage_df.index <= spy_data.index.max())]
+# Adjust SPY data timestamps to match the buy_percentage_df date format
+spy_data.index = spy_data.index.normalize()
 
 # Merge SPY data with buy percentage data
+spy_data['200_SMA'] = spy_data['Close'].rolling(window=200).mean()
 merged_df = spy_data.join(buy_percentage_df, how='left')
 
 # Define the timeframes to plot
 timeframes = {
-    '3 Months': timedelta(days=3*30),
-    '1 Year': timedelta(days=365),
-    '5 Years': timedelta(days=5*365)
+    '3_Months': timedelta(days=3*30),
+    '1_Year': timedelta(days=365),
+    '5_Years': timedelta(days=5*365)
 }
 
-# Define different markers for each JSON file
-markers = ['o', 's', 'D', '^', 'v', '<', '>', 'p', '*', 'h', 'H', 'x', 'd']
+def write_plotly_json(data, inflection_points, filename, start_date, end_date):
+    plotly_data = {
+        'date': data.index.strftime('%Y-%m-%d').tolist(),
+        'close': data['Close'].tolist(),
+        'buy_percentage': data['Buy_Percentage'].tolist(),
+        'inflection_points': [{'date': date, 'signal': signal} for date, signal in inflection_points],
+        'layout': {
+            'xaxis': {
+                'range': [start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d')],
+                'title': 'Date'
+            },
+            'yaxis': {
+                'range': [data['Close'].min(), data['Close'].max()],
+                'title': 'Price'
+            },
+            'coloraxis': {
+                'colorbar': {
+                    'title': 'Buy Percentage'
+                }
+            }
+        }
+    }
+    with open(filename, 'w') as json_file:
+        json.dump(plotly_data, json_file, indent=4)
+
+for label, period in timeframes.items():
+    end_date = datetime.now().date()
+    start_date = end_date - period
+
+    # Filter data for the current timeframe
+    filtered_data = merged_df.loc[start_date:end_date]
+    inflection_points = find_inflection_points(buy_tally)
+    filename = os.path.join(base_dir, f'master_{label.replace(" ", "_")}_plotly.json')
+    write_plotly_json(filtered_data, inflection_points, filename, start_date, end_date)
 
 # Plot SPY data with Buy and Sell signals and color gradient for each timeframe
+import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
+import matplotlib.dates as mdates
+
 for label, period in timeframes.items():
     fig, ax = plt.subplots(figsize=(14, 7))
     end_date = datetime.now().date()
@@ -117,6 +140,7 @@ for label, period in timeframes.items():
     # Add inflection points for each JSON file
     handles = []
     labels = []
+    markers = ['o', 's', 'D', '^', 'v', '<', '>', 'p', '*', 'h', 'H', 'x', 'd']
     for idx, (filename, inflection_points) in enumerate(inflection_points_dict.items()):
         marker = markers[idx % len(markers)]  # Cycle through markers if there are more files than markers
         for date_str, signal in inflection_points:
@@ -138,11 +162,11 @@ for label, period in timeframes.items():
     fig.colorbar(sm, ax=ax, label='Buy Percentage', orientation='vertical')
 
     # Adjust x-axis formatting based on the timeframe
-    if label == '3 Months':
+    if label == '3_Months':
         ax.xaxis.set_major_locator(mdates.WeekdayLocator())
         ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %d'))
         ax.xaxis.set_minor_locator(mdates.DayLocator())
-    elif label == '1 Year':
+    elif label == '1_Year':
         ax.xaxis.set_major_locator(mdates.MonthLocator())
         ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %Y'))
         ax.xaxis.set_minor_locator(mdates.WeekdayLocator())
@@ -156,6 +180,6 @@ for label, period in timeframes.items():
     plt.grid(True)
 
     # Save plot as PNG
-    plot_filename = f'../../static/master_{label.replace(" ", "_")}.png'
+    plot_filename = os.path.join(base_dir, f'master_{label.replace(" ", "_")}.png')
     plt.savefig(plot_filename)
     plt.close(fig)

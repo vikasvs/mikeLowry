@@ -1,86 +1,68 @@
-import pandas as pd
 import yfinance as yf
-import matplotlib.pyplot as plt
-from datetime import datetime, timedelta
+import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
 import json
+from datetime import datetime, timedelta
+import os
 
-def fetch_data(symbol, start_date):
-    tick = yf.Ticker(symbol)
-    data = tick.history(start=start_date)
-    data.index = data.index.tz_localize(None)
-    data['Returns'] = data['Close'].pct_change()  # Calculate returns immediately
-    return data
+# Define the base directory for static files
+base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../static'))
+os.makedirs(base_dir, exist_ok=True)
 
-def calculate_leverage_rotation(spy_data):
-    spy_data['200_MA'] = spy_data['Close'].rolling(window=200, min_periods=1).mean()  # Adjust rolling to allow less periods
+# Fetch historical data for the leveraged ETF sector and the broader market
+leveraged_etf_ticker = 'SPXL'
+market_ticker = 'SPY'
+start_date = '1980-01-01'
+leveraged_etf_data = yf.Ticker(leveraged_etf_ticker).history(start=start_date, interval='1d')
+market_data = yf.Ticker(market_ticker).history(start=start_date, interval='1d')
+leveraged_etf_data.index = leveraged_etf_data.index.tz_convert(None)
+market_data.index = market_data.index.tz_convert(None)
 
-    # Strategy: Buy when SPY > 200 MA, Sell (cash) when SPY < 200 MA
-    spy_data['Signal'] = np.where(spy_data['Close'] > spy_data['200_MA'], 'Buy', 'Sell')
-    
-    return spy_data
+df = pd.merge(leveraged_etf_data['Close'], market_data['Close'], left_index=True, right_index=True, suffixes=('_Leveraged_ETF', '_Market'))
+weekly_df = df.resample('W').last()
+weekly_df['Relative_Strength'] = weekly_df['Close_Leveraged_ETF'] / weekly_df['Close_Market']
+weekly_df['4_Week_Rolling_RS'] = weekly_df['Relative_Strength'].pct_change(periods=4)
+weekly_df['Signal'] = np.where(weekly_df['4_Week_Rolling_RS'] < 0, 'Buy', 'Sell')
+df['Weekly_Signal'] = weekly_df['Signal'].reindex(df.index, method='ffill')
+df.index = pd.to_datetime(df.index).normalize()
+daily_signals = df[df['Weekly_Signal'].isin(['Buy', 'Sell'])]
+signals_dict = {date.strftime('%Y-%m-%d'): signal for date, signal in daily_signals['Weekly_Signal'].items()}
 
-def plot_signals(spy_data, start_date, end_date, title, period):
-    # Filter data for the specified period
-    plot_data = spy_data.loc[start_date:end_date]
-
-    plt.figure(figsize=(14, 7))
-    plt.plot(plot_data.index, plot_data['Close'], label='SPY Close Price', color='blue')
-    plt.plot(plot_data.index, plot_data['200_MA'], label='200-Day Moving Average', color='orange', linestyle='--')
-    
-    buy_signals = plot_data[plot_data['Signal'] == 'Buy']
-    sell_signals = plot_data[plot_data['Signal'] == 'Sell']
-    plt.scatter(buy_signals.index, buy_signals['Close'], marker='^', color='green', label='Buy Signal', alpha=1)
-    plt.scatter(sell_signals.index, sell_signals['Close'], marker='v', color='red', label='Sell Signal', alpha=1)
-
-    plt.title(title)
-    plt.xlabel('Date')
-    plt.ylabel('SPY Close Price')
-    plt.legend()
-    plt.grid(True)
-    #plt.show()
- 
-    png_file = f'../../static/2016_{period.replace(" ", "_")}.png'
-    plt.savefig(png_file)
-
-def write_dict_to_json(data_dict, filename):
-    """Writes a dictionary to a JSON file."""
+def write_plotly_json(data, signals, inflection_points, filename, start_date, end_date):
+    plotly_data = {
+        'date': data.index.strftime('%Y-%m-%d').tolist(),
+        'close': data['Close_Market'].tolist(),
+        'inflection_points': [{'date': date, 'signal': signal} for date, signal in inflection_points],
+        'layout': {
+            'xaxis': {
+                'range': [start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d')]
+            },
+            'yaxis': {
+                'range': [data['Close_Market'].min(), data['Close_Market'].max()]
+            }
+        }
+    }
     with open(filename, 'w') as json_file:
-        # Convert keys to string format
-        str_data_dict = {key.strftime('%Y-%m-%d'): value for key, value in data_dict.items()}
-        json.dump(str_data_dict, json_file, indent=4)
+        json.dump(plotly_data, json_file, indent=4)
 
-# Load data for SPY
-symbol_spy = 'SPY'
-spy_data = fetch_data(symbol_spy, '1980-01-01')
+def find_inflection_points(signals):
+    inflection_points = []
+    prev_signal = None
+    for date, signal in signals.items():
+        if prev_signal is not None and signal != prev_signal:
+            inflection_points.append((date, signal))
+        prev_signal = signal
+    return inflection_points
 
-# Calculate signals
-spy_data = calculate_leverage_rotation(spy_data)
-
-# Generate signal dictionary
-signal_dict = {}
-for date in spy_data.index:
-    signal_dict[date] = spy_data.loc[date, 'Signal']
-
-# Write signals to JSON file
-<<<<<<< HEAD
-write_dict_to_json(signal_dict, '../papers/buy_sell_dicts/2016_leverage.json')
-=======
-write_dict_to_json(signal_dict, 'papers/buy_sell_dicts/2016_leverage.json')
->>>>>>> caf1f3c701afeb4ba6c7c28a79c9deba7f724787
-
-# Define the end date and timeframes for plotting
-end_date = pd.to_datetime(datetime.now().date())
 timeframes = {
-    '3 Months': (end_date - timedelta(days=90), end_date),
-    '1 Year': (end_date - timedelta(days=365), end_date),
-    '5 Years': (end_date - timedelta(days=5 * 365), end_date)  # Adjust for leap years if necessary
+    '3_Months': datetime.now() - timedelta(days=90),
+    '1_Year': datetime.now() - timedelta(days=365),
+    '5_Years': datetime.now() - timedelta(days=5*365)
 }
 
-# Plot for each timeframe
-for period, (start_date, end_date) in timeframes.items():
-<<<<<<< HEAD
-    plot_signals(spy_data, start_date, end_date, f'SPY Buy and Sell Signals ({period})', period)
-=======
-    plot_signals(spy_data, start_date, end_date, f'SPY Buy and Sell Signals ({period})')
->>>>>>> caf1f3c701afeb4ba6c7c28a79c9deba7f724787
+for period, start_date in timeframes.items():
+    filtered_data = df[(df.index >= start_date) & (df.index <= datetime.now())]
+    inflection_points = find_inflection_points(signals_dict)
+    filename = os.path.join(base_dir, f'2016_{period.replace(" ", "_")}_plotly.json')
+    write_plotly_json(filtered_data, signals_dict, inflection_points, filename, start_date, datetime.now())
